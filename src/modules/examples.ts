@@ -574,6 +574,7 @@ export class PromptExampleFactory {
           return items.length > 0;
         },
         callback(prompt) {
+          console.debug("registerConditionalCommandExample");
           prompt.inputNode.placeholder = "Hello World!";
           const items = ztoolkit.getGlobal("ZoteroPane").getSelectedItems();
           ztoolkit.getGlobal("alert")(
