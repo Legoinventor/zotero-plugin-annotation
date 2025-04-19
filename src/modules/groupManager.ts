@@ -15,22 +15,27 @@ export class GroupManager {
         tags: string[]
     ): Promise<Zotero.Item> {
         const groupNoteContent = `
-      <h1>Group: ${groupName}</h1>
-      <p>Enthält ${annotationIDs.length} Annotationen.</p>
-    `;
+          <h1>Group: ${groupName}</h1>
+          <p>Enthält ${annotationIDs.length} Annotationen.</p>
+        `;
 
-        const groupNote = await ztoolkit.Item.addNote(parentItem.id, {
-            note: groupNoteContent,
-            tags: [...tags, `Group:${groupName}`],
-        });
+        // Note manuell erstellen und korrekt mit Parent verbinden
+        const groupNote = new Zotero.Item("note");
+        groupNote.libraryID = parentItem.libraryID;
+        groupNote.setNote(groupNoteContent);
+        groupNote.setTags([...tags, `Group:${groupName}`]);
+        groupNote.parentID = parentItem.id;
 
-        // Verknüpfe Annotation-Notes mit der Gruppe
+        await groupNote.saveTx();
+
+        // Annotationen mit Gruppen-ID im Feld "extra" markieren
         for (const id of annotationIDs) {
             const note = Zotero.Items.get(id);
-            note.setField('extra', `Group:${groupNote.id}`);
+            note.setField("extra", `Group:${groupNote.id}`);
             await note.save();
         }
 
         return groupNote;
     }
+
 }

@@ -1,17 +1,19 @@
 // src/modules/annotationManager.ts
 export class AnnotationManager {
     static async convertAllAnnotationsToNotes(pdfItem: Zotero.Item) {
+        ztoolkit.log("pdfItem", pdfItem);
         const parentItem = pdfItem.parentItem;
         if (!parentItem) {
             ztoolkit.log("No parent item found for PDF");
             return;
         }
+        ztoolkit.log(parentItem.getDisplayTitle());
 
         const progress = new ztoolkit.ProgressWindow("Converting Annotations");
         progress.createLine({ text: "Starting...", progress: 0 }).show();
 
         try {
-            const annotations = await this.getAllAnnotations(pdfItem.id);
+            const annotations = await this.getAnnotationsZotero7(pdfItem);
             ztoolkit.log(`Found ${annotations.length} annotations`);
 
             if (annotations.length === 0) {
@@ -36,11 +38,18 @@ export class AnnotationManager {
                 }
             }
 
-            // Note erstellen
-            await ztoolkit.Item.addNote(parentItem.id, {
-                note: noteContent,
-                tags: parentItem.getTags().map(t => ({ tag: t.tag })),
-            });
+            const noteItem = new Zotero.Item("note");
+            noteItem.libraryID = parentItem.libraryID;
+            noteItem.setNote(noteContent);
+            const tags = parentItem.getTags().filter((element) => !element.tag.toLowerCase().includes("unread"));
+            noteItem.setTags(tags);
+            // noteItem.setRelations({
+            //     "dc:relation": [`zotero://select/library/items/${parentItem.key}`],
+            // });
+            ztoolkit.log(noteItem.parentID, parentItem.id);
+            noteItem.parentID = parentItem.id; // wichtig!
+            await noteItem.saveTx();
+
 
             progress.changeLine({ text: "Done!", progress: 100, type: "success" });
         } catch (e) {
@@ -57,53 +66,43 @@ export class AnnotationManager {
     }
 
     private static formatSingleAnnotation(
-        annotation: Zotero.Annotation,
+        annotation: _ZoteroTypes.Annotations,
         parentItem: Zotero.Item,
         pdfItem: Zotero.Item
     ): string {
         const pageLabel = annotation.pageLabel || "N/A";
-        const citation = `(${parentItem.getField("creatorSummary")}, ${parentItem.getField("year")}, p. ${pageLabel})`;
+        const citation = `${parentItem.getField("sortCreator")}, ${parentItem.getField("year")}, p. ${pageLabel}`;
         const pdfLink = `zotero://open-pdf/library/items/${pdfItem.key}?page=${pageLabel}&annotation=${annotation.key}`;
-        const itemLink = `zotero://select/library/items/${parentItem.key}`;
+        // const itemLink = `zotero://select/library/items/${parentItem.key}`;
 
         return `
         <li>
-          “${annotation.text}” ${citation}
-          (<a href="${itemLink}">Zotero</a>)
-          (<a href="${pdfLink}">PDF</a>)
+          <b>“${annotation.text}”</b> 
+          (${citation}, <a href="${pdfLink}">PDF</a>)
         </li>
-      `;
-    }
-
-
-    static async getAllAnnotations(pdfItemID: number) {
-        if (typeof Zotero.Annotations?.getAll === 'function') {
-            return Zotero.Annotations.getAll(pdfItemID); // Zotero 7+
-        } else {
-            return this.getAnnotationsLegacy(pdfItemID); // Zotero 6
-        }
-    }
-
-    private static async getAnnotationsLegacy(itemID: number): Promise<any[]> {
-        const sql = `
-        SELECT name FROM sqlite_master WHERE type=?;
         `;
-        // SELECT * FROM itemAnnotations
-        // JOIN items ON itemAnnotations.itemID = items.itemID
-        // WHERE parentItemID = ?
 
-        try {
-            const annotations = await Zotero.DB.queryAsync(sql, ['table']);
-            // const annotations = await Zotero.DB.queryAsync(sql, [itemID]);
-            ztoolkit.log("Tables:", annotations);
-            return annotations.map(ann => ({
-                text: ann.text,
-                pageLabel: ann.pageLabel,
-                key: Zotero.Items.get(ann.itemID).key
-            }));
-        } catch (e) {
-            ztoolkit.log("Error fetching annotations:", e);
-            return [];
-        }
+        // return `
+        // <li>
+        //   “${annotation.text}” ${citation}
+        //   (<a href="${itemLink}">Zotero</a>)
+        //   (<a href="${pdfLink}">PDF</a>)
+        // </li>
+        // `;
     }
+
+
+    private static async getAnnotationsZotero7(pdfItem: Zotero.Item): Promise<_ZoteroTypes.Annotations.AnnotationJson[]> {
+        const annotationItems = await pdfItem.getAnnotations();
+        const annotations = await Promise.all(annotationItems.map(i => Zotero.Annotations.toJSON(i)));
+
+        for (const a of annotations) {
+            ztoolkit.log(a);
+            // ztoolkit.log(a.text, a.comment, a.pageLabel, a.color);
+        }
+
+        return annotations;
+    }
+
+
 }
