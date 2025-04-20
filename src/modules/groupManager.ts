@@ -1,5 +1,12 @@
 import { AnnotationManager } from "./annotationManager";
 
+export interface AnnotationGroup {
+    color: string;
+    pageLabel: string;
+    pageIndex: number;
+    annotations: _ZoteroTypes.Annotations.AnnotationJson[];
+}
+
 export class GroupManager {
     /**
      * Erstellt eine Gruppen-Note und verknüpft Annotationen damit.
@@ -36,6 +43,31 @@ export class GroupManager {
         }
 
         return groupNote;
+    }
+
+    static groupAnnotationsByPageAndColor(annotations: _ZoteroTypes.Annotations.AnnotationJson[]): AnnotationGroup[] {
+        const grouped: any = {};
+
+        annotations.forEach(annotation => {
+            // Erstelle einen eindeutigen Schlüssel aus Farbe und Seitenzahl
+            const key = `${annotation.pageLabel}_${annotation.color}`;
+
+            // Wenn die Gruppe noch nicht existiert, erstelle sie
+            if (!grouped[key]) {
+                grouped[key] = {
+                    color: annotation.color,
+                    pageLabel: annotation.pageLabel,
+                    pageIndex: annotation.position.pageIndex,
+                    annotations: []
+                };
+            }
+
+            // Füge die Annotation zur Gruppe hinzu
+            grouped[key].annotations.push(annotation);
+        });
+
+        // Konvertiere das Objekt in ein Array von Gruppen
+        return Object.values(grouped);
     }
 
 }

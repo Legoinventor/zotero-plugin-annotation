@@ -1,13 +1,16 @@
+import { NoteManager } from "./noteManager";
+import { AnnotationGroup, GroupManager } from './groupManager';
+
 // src/modules/annotationManager.ts
 export class AnnotationManager {
     static async convertAllAnnotationsToNotes(pdfItem: Zotero.Item) {
-        ztoolkit.log("pdfItem", pdfItem);
         const parentItem = pdfItem.parentItem;
         if (!parentItem) {
             ztoolkit.log("No parent item found for PDF");
             return;
         }
-        ztoolkit.log(parentItem.getDisplayTitle());
+        // ztoolkit.log("pdfItem", pdfItem);
+        // ztoolkit.log('parentItem', parentItem);
 
         const progress = new ztoolkit.ProgressWindow("Converting Annotations");
         progress.createLine({ text: "Starting...", progress: 0 }).show();
@@ -24,35 +27,38 @@ export class AnnotationManager {
             progress.changeLine({ text: `Processing ${annotations.length} annotations...` });
 
             // Note-Content schrittweise aufbauen
-            let noteContent = this.formatAnnotationsAsNoteHeader();
-            for (let i = 0; i < annotations.length; i++) {
-                noteContent += this.formatSingleAnnotation(annotations[i], parentItem, pdfItem);
+            // let noteContent = this.formatAnnotationsAsNoteHeader();
+            // for (let i = 0; i < annotations.length; i++) {
+            //     noteContent += this.formatSingleAnnotation(annotations[i], parentItem, pdfItem);
 
-                // Fortschritt aktualisieren (alle 5 Annotationen oder am Ende)
-                if (i % 5 === 0 || i === annotations.length - 1) {
-                    progress.changeLine({
-                        progress: (i / annotations.length) * 100,
-                        text: `Processed ${i + 1}/${annotations.length}`,
-                    });
-                    await Zotero.Promise.delay(10); // UI-Thread atmen lassen
-                }
-            }
+            //     // Fortschritt aktualisieren (alle 5 Annotationen oder am Ende)
+            //     if (i % 5 === 0 || i === annotations.length - 1) {
+            //         progress.changeLine({
+            //             progress: (i / annotations.length) * 100,
+            //             text: `Processed ${i + 1}/${annotations.length}`,
+            //         });
+            //         await Zotero.Promise.delay(10); // UI-Thread atmen lassen
+            //     }
+            // }
 
-            const noteItem = new Zotero.Item("note");
-            noteItem.libraryID = parentItem.libraryID;
-            noteItem.setNote(noteContent);
-            const tags = parentItem.getTags().filter((element) => !element.tag.toLowerCase().includes("unread"));
-            noteItem.setTags(tags);
-            // noteItem.setRelations({
-            //     "dc:relation": [`zotero://select/library/items/${parentItem.key}`],
-            // });
-            ztoolkit.log(noteItem.parentID, parentItem.id);
-            noteItem.parentID = parentItem.id; // wichtig!
-            await noteItem.saveTx();
+            const noteGroups: AnnotationGroup[] = GroupManager.groupAnnotationsByPageAndColor(annotations);
+            ztoolkit.log(noteGroups);
+
+            noteGroups.forEach((group: AnnotationGroup) => {
+                let noteContent = `<h1>Group (p.${group.pageLabel} | ${group.color})</h1>`;
+                group.annotations.forEach((an: _ZoteroTypes.Annotations.AnnotationJson) => {
+                    noteContent += this.formatSingleAnnotation(an, parentItem, pdfItem);
+                });
+
+                const tags = parentItem.getTags().filter((element: any) => !element.tag.toLowerCase().includes("unread"));
+                NoteManager.createNote(parentItem, noteContent, tags);
+
+            });
+
 
 
             progress.changeLine({ text: "Done!", progress: 100, type: "success" });
-        } catch (e) {
+        } catch (e: any) {
             progress.changeLine({ text: `Error: ${e.message}`, type: "fail" });
             ztoolkit.log(e);
         } finally {
@@ -66,12 +72,12 @@ export class AnnotationManager {
     }
 
     private static formatSingleAnnotation(
-        annotation: _ZoteroTypes.Annotations,
+        annotation: _ZoteroTypes.Annotations.AnnotationJson,
         parentItem: Zotero.Item,
         pdfItem: Zotero.Item
     ): string {
         const pageLabel = annotation.pageLabel || "N/A";
-        const citation = `${parentItem.getField("sortCreator")}, ${parentItem.getField("year")}, p. ${pageLabel}`;
+        const citation = `${parentItem.getField("firstCreator")}, ${parentItem.getField("year")}, p. ${pageLabel}`;
         const pdfLink = `zotero://open-pdf/library/items/${pdfItem.key}?page=${pageLabel}&annotation=${annotation.key}`;
         // const itemLink = `zotero://select/library/items/${parentItem.key}`;
 
@@ -96,10 +102,10 @@ export class AnnotationManager {
         const annotationItems = await pdfItem.getAnnotations();
         const annotations = await Promise.all(annotationItems.map(i => Zotero.Annotations.toJSON(i)));
 
-        for (const a of annotations) {
-            ztoolkit.log(a);
-            // ztoolkit.log(a.text, a.comment, a.pageLabel, a.color);
-        }
+        // for (const a of annotations) {
+        //     ztoolkit.log(a);
+        //     // ztoolkit.log(a.text, a.comment, a.pageLabel, a.color);
+        // }
 
         return annotations;
     }
