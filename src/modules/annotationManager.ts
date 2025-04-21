@@ -1,6 +1,6 @@
 import { NoteManager } from "./noteManager";
 import { AnnotationGroup, GroupManager } from './groupManager';
-import { getEmojiForColor } from "../utils/colorMapper";
+import { getEmojiForColor, hexToEmoji } from "../utils/colorMapper";
 
 // src/modules/annotationManager.ts
 export class AnnotationManager {
@@ -27,26 +27,12 @@ export class AnnotationManager {
 
             progress.changeLine({ text: `Processing ${annotations.length} annotations...` });
 
-            // Note-Content schrittweise aufbauen
-            // let noteContent = this.formatAnnotationsAsNoteHeader();
-            // for (let i = 0; i < annotations.length; i++) {
-            //     noteContent += this.formatSingleAnnotation(annotations[i], parentItem, pdfItem);
-
-            //     // Fortschritt aktualisieren (alle 5 Annotationen oder am Ende)
-            //     if (i % 5 === 0 || i === annotations.length - 1) {
-            //         progress.changeLine({
-            //             progress: (i / annotations.length) * 100,
-            //             text: `Processed ${i + 1}/${annotations.length}`,
-            //         });
-            //         await Zotero.Promise.delay(10); // UI-Thread atmen lassen
-            //     }
-            // }
 
             const noteGroups: AnnotationGroup[] = GroupManager.groupAnnotationsByPageAndColor(annotations);
             ztoolkit.log(noteGroups);
 
             noteGroups.forEach((group: AnnotationGroup, index: number) => {
-                let noteContent = `<h1>${getEmojiForColor(group.color)} Group (p.${group.pageLabel} | ${group.color})</h1>`;
+                let noteContent = `<h1>${hexToEmoji(group.color)} Group (p.${group.pageLabel} | ${group.color})</h1>`;
                 group.annotations.forEach((an: _ZoteroTypes.Annotations.AnnotationJson) => {
                     noteContent += this.formatSingleAnnotation(an, parentItem, pdfItem);
                 });
@@ -59,7 +45,8 @@ export class AnnotationManager {
                     Zotero.Promise.delay(10); // UI-Thread atmen lassen
                 }
 
-                const tags = parentItem.getTags().filter((element: any) => !element.tag.toLowerCase().includes("unread"));
+                const ignoreTags: string[] = ["unread", "read", "analyse"]
+                const tags = parentItem.getTags().filter((element: any) => !ignoreTags.some(ignore => element.tag.toLowerCase().includes(ignore)));
                 NoteManager.createNote(parentItem, noteContent, tags);
 
             });

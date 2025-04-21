@@ -1,54 +1,41 @@
-// Farbzuordnung zu Emojis (Grundfarben)
-const colorEmojiMap: { [key: string]: string } = {
-    red: "🔴",
-    orange: "🟠",
-    yellow: "🟡",
-    green: "🟢",
-    blue: "🔵",
-    purple: "🟣",
-    brown: "🟤",
-    black: "⚫",
-    white: "⚪",
-};
+export function hexToEmoji(hex: string): string {
+    // HEX → RGB
+    const r = parseInt(hex.slice(1, 3), 16) / 255;
+    const g = parseInt(hex.slice(3, 5), 16) / 255;
+    const b = parseInt(hex.slice(5, 7), 16) / 255;
 
-// Hilfsfunktion: Bestimme die "nächste" Farbkategorie
-function getClosestColorCategory(r: number, g: number, b: number): keyof typeof colorEmojiMap {
-    const categories = {
-        red: [255, 0, 0],
-        orange: [255, 165, 0],
-        yellow: [255, 255, 0],
-        green: [0, 128, 0],
-        blue: [0, 0, 255],
-        purple: [128, 0, 128],
-        brown: [139, 69, 19],
-        black: [0, 0, 0],
-        white: [255, 255, 255],
-    };
+    // RGB → HSL
+    const max = Math.max(r, g, b);
+    const min = Math.min(r, g, b);
+    const delta = max - min;
 
-    let closest: keyof typeof categories = "black";
-    let minDistance = Infinity;
+    let h = 0, s = 0, l = (max + min) / 2;
 
-    for (const [key, [cr, cg, cb]] of Object.entries(categories)) {
-        const dist = Math.sqrt((r - cr) ** 2 + (g - cg) ** 2 + (b - cb) ** 2);
-        if (dist < minDistance) {
-            minDistance = dist;
-            closest = key as keyof typeof categories;
+    if (delta !== 0) {
+        s = delta / (1 - Math.abs(2 * l - 1));
+        switch (max) {
+            case r: h = ((g - b) / delta + (g < b ? 6 : 0)) * 60; break;
+            case g: h = ((b - r) / delta + 2) * 60; break;
+            case b: h = ((r - g) / delta + 4) * 60; break;
         }
     }
 
-    return closest;
+    // Entsättigte Farben → Weiß/Grau/Schwarz
+    if (s < 0.15) {
+        if (l > 0.85) return "⚪";
+        if (l < 0.2) return "⚫";
+        return "🟤"; // Mittelgrau → Braun als Fallback
+    }
+
+    // Farbton → Emoji
+    if (h < 15 || h >= 345) return "🔴";
+    if (h < 45) return "🟠";
+    if (h < 65) return "🟡";
+    if (h < 170) return "🟢";
+    if (h < 255) return "🔵";
+    if (h < 290) return "🟣";
+    if (h < 345) return "🟤";
+
+    return "⚪"; // Fallback
 }
 
-export function getEmojiForColor(hexColor: string): string {
-    // Entferne das # falls vorhanden
-    hexColor = hexColor.replace("#", "");
-
-    if (hexColor.length !== 6) return "⚪"; // fallback bei ungültigem Code
-
-    const r = parseInt(hexColor.substring(0, 2), 16);
-    const g = parseInt(hexColor.substring(2, 4), 16);
-    const b = parseInt(hexColor.substring(4, 6), 16);
-
-    const category = getClosestColorCategory(r, g, b);
-    return colorEmojiMap[category];
-}
