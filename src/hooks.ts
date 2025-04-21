@@ -36,7 +36,7 @@ async function onStartup() {
   // UIExampleFactory.registerReaderItemPaneSection();
 
   UI_Manager.registerContextMenuForPDFs();
-  UI_Manager.registerContextMenuForTagging();
+  // UI_Manager.registerContextMenuForTagging();
 
   await Promise.all(
     Zotero.getMainWindows().map((win) => onMainWindowLoad(win)),

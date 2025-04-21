@@ -9,7 +9,7 @@ export class NoteManager {
         // noteItem.setRelations({
         //     "dc:relation": [`zotero://select/library/items/${parentItem.key}`],
         // });
-        ztoolkit.log(noteItem.parentID, parentItem.id);
+        // ztoolkit.log(noteItem.parentID, parentItem.id);
         noteItem.parentID = parentItem.id; // wichtig!
         await noteItem.saveTx();
     }

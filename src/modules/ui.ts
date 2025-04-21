@@ -24,21 +24,21 @@ export class UI_Manager {
         });
     }
 
-    static registerContextMenuForTagging() {
+    // static registerContextMenuForTagging() {
 
-        // ztoolkit.log(`chrome://${config.addonRef}/content/icons/Art_And_Design_Transformation-1024.png`);
-        ztoolkit.Menu.register("collection", {
-            tag: "menuitem",
-            id: "tag-manager",
-            label: "Map notes to tags",
-            icon: `chrome://${addon.data.config.addonRef}/content/icons/Art_And_Design_Transformation-1024.png`,
+    //     // ztoolkit.log(`chrome://${config.addonRef}/content/icons/Art_And_Design_Transformation-1024.png`);
+    //     ztoolkit.Menu.register("collection", {
+    //         tag: "menuitem",
+    //         id: "tag-manager",
+    //         label: "Map notes to tags",
+    //         icon: `chrome://${addon.data.config.addonRef}/content/icons/Art_And_Design_Transformation-1024.png`,
 
-            commandListener: async () => {
-                const ZoteroPane = Zotero.getActiveZoteroPane(); // Korrektur hier
-                const collection = ZoteroPane.getSelectedCollection();
-                ztoolkit.log(collection);
-                if (collection) await TagManager.showAdvancedTaggingDialog(collection);
-            },
-        });
-    }
+    //         commandListener: async () => {
+    //             const ZoteroPane = Zotero.getActiveZoteroPane(); // Korrektur hier
+    //             const collection = ZoteroPane.getSelectedCollection();
+    //             ztoolkit.log(collection);
+    //             if (collection) await TagManager.showAdvancedTaggingDialog(collection);
+    //         },
+    //     });
+    // }
 }

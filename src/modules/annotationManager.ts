@@ -1,5 +1,6 @@
 import { NoteManager } from "./noteManager";
 import { AnnotationGroup, GroupManager } from './groupManager';
+import { getEmojiForColor } from "../utils/colorMapper";
 
 // src/modules/annotationManager.ts
 export class AnnotationManager {
@@ -44,11 +45,19 @@ export class AnnotationManager {
             const noteGroups: AnnotationGroup[] = GroupManager.groupAnnotationsByPageAndColor(annotations);
             ztoolkit.log(noteGroups);
 
-            noteGroups.forEach((group: AnnotationGroup) => {
-                let noteContent = `<h1>Group (p.${group.pageLabel} | ${group.color})</h1>`;
+            noteGroups.forEach((group: AnnotationGroup, index: number) => {
+                let noteContent = `<h1>${getEmojiForColor(group.color)} Group (p.${group.pageLabel} | ${group.color})</h1>`;
                 group.annotations.forEach((an: _ZoteroTypes.Annotations.AnnotationJson) => {
                     noteContent += this.formatSingleAnnotation(an, parentItem, pdfItem);
                 });
+
+                if (index % 5 === 0 || index === annotations.length - 1) {
+                    progress.changeLine({
+                        progress: (index / annotations.length) * 100,
+                        text: `Processed ${index + 1}/${annotations.length}`,
+                    });
+                    Zotero.Promise.delay(10); // UI-Thread atmen lassen
+                }
 
                 const tags = parentItem.getTags().filter((element: any) => !element.tag.toLowerCase().includes("unread"));
                 NoteManager.createNote(parentItem, noteContent, tags);
@@ -101,14 +110,9 @@ export class AnnotationManager {
     private static async getAnnotationsZotero7(pdfItem: Zotero.Item): Promise<_ZoteroTypes.Annotations.AnnotationJson[]> {
         const annotationItems = await pdfItem.getAnnotations();
         const annotations = await Promise.all(annotationItems.map(i => Zotero.Annotations.toJSON(i)));
-
-        // for (const a of annotations) {
-        //     ztoolkit.log(a);
-        //     // ztoolkit.log(a.text, a.comment, a.pageLabel, a.color);
-        // }
-
         return annotations;
     }
+
 
 
 }
