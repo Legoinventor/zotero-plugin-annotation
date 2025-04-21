@@ -8,7 +8,7 @@ import {
 import { getString, initLocale } from "./utils/locale";
 import { registerPrefsScripts } from "./modules/preferenceScript";
 import { createZToolkit } from "./utils/ztoolkit";
-import { AnnotationUI } from "./modules/ui";
+import { UI_Manager } from "./modules/ui";
 
 async function onStartup() {
   await Promise.all([
@@ -19,7 +19,7 @@ async function onStartup() {
 
   initLocale();
 
-  // BasicExampleFactory.registerPrefs();
+  BasicExampleFactory.registerPrefs();
 
   // BasicExampleFactory.registerNotifier();
 
@@ -35,7 +35,8 @@ async function onStartup() {
 
   // UIExampleFactory.registerReaderItemPaneSection();
 
-  AnnotationUI.registerContextMenuForPDFs();
+  UI_Manager.registerContextMenuForPDFs();
+  UI_Manager.registerContextMenuForTagging();
 
   await Promise.all(
     Zotero.getMainWindows().map((win) => onMainWindowLoad(win)),

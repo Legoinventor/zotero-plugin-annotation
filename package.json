@@ -59,7 +59,8 @@
   },
   "build": {
     "resources": [
-      "annotationmanager/content/icons/**"
+      "annotationmanager/content/icons/**",
+      "annotationmanager/content/*.htmlx"
     ]
   }
 }
