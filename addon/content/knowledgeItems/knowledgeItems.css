@@ -1,0 +1,23 @@
+body {
+    display: flex;
+    margin: 0;
+    font-family: sans-serif;
+}
+
+#chapter-sidebar {
+    width: 200px;
+    padding: 10px;
+    border-right: 1px solid #ccc;
+}
+
+#note-list {
+    flex: 1;
+    padding: 10px;
+    overflow-y: auto;
+}
+
+.note-entry {
+    margin-bottom: 10px;
+    border-bottom: 1px solid #eee;
+    padding-bottom: 5px;
+}

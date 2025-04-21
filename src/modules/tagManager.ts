@@ -112,82 +112,49 @@ export class TagManager {
 
     static async showAdvancedTaggingDialog(collection: Zotero.Collection) {
         const allNotes: Zotero.Item[] = await TagManager.getNotesFromCollection(collection);
-        ztoolkit.log("allNotes", allNotes);
-        const allTags = await TagManager.getTagsFromCollection(collection); // Hole alle Tags
-        ztoolkit.log("allTags", allTags);
+        const allTags = await TagManager.getTagsFromCollection(collection);
 
         const chapterTags = allTags
             .filter(tag => tag.startsWith("Kap | "))
             .sort();
-        ztoolkit.log("chapterTags", chapterTags);
 
-        // Gruppiere Notes nach Kapitel-Tag
         const noteGroups: { [tag: string]: Zotero.Item[] } = {
             "<<Kein Kapitel>>": [],
         };
-        for (const tag of chapterTags) {
-            noteGroups[tag] = [];
-        }
+        for (const tag of chapterTags) noteGroups[tag] = [];
 
         for (const note of allNotes) {
-            const tags = note.getTags();
-            const chapterTag = tags.find(t => t.tag.startsWith("Kap | "));
+            const chapterTag = note.getTags().find(t => t.tag.startsWith("Kap | "));
             if (chapterTag) {
                 noteGroups[chapterTag.tag]?.push(note);
             } else {
                 noteGroups["<<Kein Kapitel>>"].push(note);
             }
         }
-        ztoolkit.log("noteGroups", noteGroups);
+        ztoolkit.log(noteGroups);
 
         const dialogData: any = {
             selectedChapter: "<<Kein Kapitel>>",
-            unloadCallback: () => ztoolkit.log("Dialog geschlossen"),
             loadCallback: () => ztoolkit.log("Dialog geöffnet"),
+            unloadCallback: () => ztoolkit.log("Dialog geschlossen"),
         };
 
         const dialog = new ztoolkit.Dialog(30, 3);
 
-        // Linke Spalte: Kapitel-Filter (Radiobuttons)
+        // Spalte 0: Kapitel-Filter (Radiobuttons)
         let row = 0;
         dialog.addCell(row++, 0, {
             tag: "h2",
             properties: { innerHTML: "Kapitelübersicht" },
         });
 
-        Object.keys(noteGroups).forEach((tag, i) => {
-            const id = `chapter-radio-${i}`;
-            dialog.addCell(row, 0, {
-                tag: "input",
-                namespace: "html",
-                id,
-                attributes: {
-                    type: "radio",
-                    name: "chapterFilter",
-                    value: tag,
-                    "data-bind": "selectedChapter",
-                    "data-prop": "value",
-                },
-                listeners: [
-                    {
-                        type: "change",
-                        listener: () => {
-                            // Dialog neustarten mit gefilterten Notes
-                            addon.data.dialog?.openedWindow?.close();
-                            this.showAdvancedTaggingDialog(collection);
-                        },
-                    },
-                ],
-            });
-            dialog.addCell(row++, 1, {
-                tag: "label",
-                attributes: { for: id },
-                properties: { innerHTML: tag },
-            });
+        dialog.addCell(row++, 0, {
+            tag: "div",
+            id: "chapter-filter",
+            properties: { innerHTML: "" },
         });
 
-        // Button: neues Kapitel erzeugen
-        dialog.addCell(row++, 0, {
+        dialog.addButton(row++, 0, {
             tag: "button",
             properties: { innerHTML: "➕ Kapitel hinzufügen" },
             listeners: [{
@@ -202,54 +169,116 @@ export class TagManager {
                     await note.saveTx();
                     await note.addTag(tagName);
                     await note.saveTx();
-                    // dialog.close();
-                    this.showAdvancedTaggingDialog(collection);
+                    await this.showAdvancedTaggingDialog(collection); // Neu laden
                 },
             }],
         });
 
-        // Mittlere Spalte: Notes für ausgewähltes Kapitel
-        const selectedNotes = noteGroups[dialogData.selectedChapter || "<<Kein Kapitel>>"] || [];
-        selectedNotes.forEach((note, index) => {
-            const textPreview = note.getNote().replace(/(<([^>]+)>)/gi, "").slice(0, 60);
-            dialog.addCell(index, 1, {
-                tag: "p",
-                properties: { innerHTML: textPreview },
-            });
-
-            // Rechte Spalte: Dropdown zum Kapitel setzen
-            const options = chapterTags.map(tag => ({
-                tag: "option",
-                properties: { value: tag.tag, innerHTML: tag.tag },
-                attributes: note.hasTag(tag.tag) ? { selected: "true" } : {},
-            }));
-            options.unshift({
-                tag: "option",
-                properties: { value: "<<Kein Kapitel>>", innerHTML: "<<Kein Kapitel>>" },
-                attributes: note.getTags().every(t => !t.tag.startsWith("Kap | ")) ? { selected: "true" } : {},
-            });
-
-            dialog.addCell(index, 2, {
-                tag: "select",
-                namespace: "html",
-                attributes: { "data-note-id": note.id },
-                children: options,
-                listeners: [
-                    {
-                        type: "change",
-                        listener: async (e: Event) => {
-                            const value = (e.target as HTMLSelectElement).value;
-                            const currentNote = allNotes.find(n => n.id === note.id);
-                            if (!currentNote) return;
-                            const currentTags = currentNote.getTags().filter(t => !t.tag.startsWith("Kap | "));
-                            if (value !== "<<Kein Kapitel>>") currentTags.push({ tag: value });
-                            currentNote.setTags(currentTags);
-                            await currentNote.saveTx();
-                        },
-                    },
-                ],
-            });
+        // Leere Wrapper für Spalte 1 und 2 (mittig und rechts)
+        dialog.addCell(0, 1, {
+            tag: "div",
+            id: "note-list",
+            properties: { innerHTML: "" },
+            attributes: { rowspan: "50" },
         });
+        dialog.addCell(0, 2, {
+            tag: "div",
+            id: "chapter-selects",
+            properties: { innerHTML: "" },
+            attributes: { rowspan: "50" },
+        });
+
+        // Dynamisches Rendering nach Auswahl
+        const renderDynamicContent = (selectedTag: string) => {
+            const document = Zotero.getMainWindow().document;
+
+            const noteListDiv = document.getElementById("note-list");
+            const selectsDiv = document.getElementById("chapter-selects");
+            if (!noteListDiv || !selectsDiv) return;
+
+            const selectedNotes = noteGroups[selectedTag] || [];
+
+            noteListDiv.innerHTML = "";
+            selectsDiv.innerHTML = "";
+
+            selectedNotes.forEach((note, index) => {
+                const textPreview = note.getNote().replace(/(<([^>]+)>)/gi, "").slice(0, 60);
+
+                const noteP = document.createElement("p");
+                noteP.innerText = textPreview;
+                noteP.id = `note-preview-${note.id}`;
+                noteListDiv.appendChild(noteP);
+
+                const select = document.createElement("select");
+                select.setAttribute("data-note-id", note.id.toString());
+                select.addEventListener("change", async (e) => {
+                    const value = (e.target as HTMLSelectElement).value;
+                    const currentNote = allNotes.find(n => n.id === note.id);
+                    if (!currentNote) return;
+                    const currentTags = currentNote.getTags().filter(t => !t.tag.startsWith("Kap | "));
+                    if (value !== "<<Kein Kapitel>>") currentTags.push({ tag: value });
+                    currentNote.setTags(currentTags);
+                    await currentNote.saveTx();
+                });
+
+                const noChapterSelected = note.getTags().every(t => !t.tag.startsWith("Kap | "));
+                const allOptions = [
+                    ...[
+                        {
+                            tag: "<<Kein Kapitel>>",
+                            selected: noChapterSelected,
+                        },
+                    ],
+                    ...chapterTags.map(tag => ({
+                        tag,
+                        selected: note.hasTag(tag),
+                    })),
+                ];
+
+                allOptions.forEach(opt => {
+                    const option = document.createElement("option");
+                    option.value = opt.tag;
+                    option.innerText = opt.tag;
+                    if (opt.selected) option.selected = true;
+                    select.appendChild(option);
+                });
+
+                selectsDiv.appendChild(select);
+            });
+        };
+
+        // Kapitel-Filter als Radiobuttons rendern
+        const renderChapterFilter = () => {
+            const document = Zotero.getMainWindow().document;
+            const filterContainer = document.getElementById("chapter-filter");
+            if (!filterContainer) return;
+            filterContainer.innerHTML = "";
+
+            Object.keys(noteGroups).forEach((tag, i) => {
+                const radio = document.createElement("input");
+                const id = `radio-${i}`;
+                radio.type = "radio";
+                radio.name = "chapter-radio";
+                radio.value = tag;
+                radio.id = id;
+                radio.checked = tag === dialogData.selectedChapter;
+                radio.addEventListener("change", () => {
+                    dialogData.selectedChapter = tag;
+                    renderDynamicContent(tag);
+                });
+
+                const label = document.createElement("label");
+                label.setAttribute("for", id);
+                label.innerText = tag;
+
+                filterContainer.appendChild(radio);
+                filterContainer.appendChild(label);
+                filterContainer.appendChild(document.createElement("br"));
+            });
+        };
+
+        renderChapterFilter();
+        renderDynamicContent(dialogData.selectedChapter);
 
         dialog.setDialogData(dialogData);
         dialog.open("Kapitel-Tags verwalten");
@@ -258,6 +287,7 @@ export class TagManager {
         await dialogData.unloadLock?.promise;
         addon.data.dialog = undefined;
     }
+
 
 }
 

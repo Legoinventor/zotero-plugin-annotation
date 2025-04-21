@@ -36,7 +36,6 @@ async function onStartup() {
   // UIExampleFactory.registerReaderItemPaneSection();
 
   UI_Manager.registerContextMenuForPDFs();
-  UI_Manager.registerContextMenuForTagging();
 
   await Promise.all(
     Zotero.getMainWindows().map((win) => onMainWindowLoad(win)),
@@ -69,7 +68,8 @@ async function onMainWindowLoad(win: _ZoteroTypes.MainWindow): Promise<void> {
     text: `[30%] ${getString("startup-begin")}`,
   });
 
-  // UIExampleFactory.registerStyleSheet(win);
+  UIExampleFactory.registerStyleSheet(win);
+  UI_Manager.registerContextMenuForTagging(win);
 
   // UIExampleFactory.registerRightClickMenuItem();
 
@@ -91,7 +91,7 @@ async function onMainWindowLoad(win: _ZoteroTypes.MainWindow): Promise<void> {
   });
   popupWin.startCloseTimer(5000);
 
-  // addon.hooks.onDialogEvents("dialogExample");
+  addon.hooks.onDialogEvents("dialogExample");
 }
 
 async function onMainWindowUnload(win: Window): Promise<void> {

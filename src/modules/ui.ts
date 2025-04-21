@@ -1,5 +1,6 @@
 // src/modules/ui.ts
 import { AnnotationManager } from "./annotationManager";
+import { openKnowledgeItemsWindow } from "./knowledgeItemsWindow";
 import { TagManager } from "./tagManager";
 
 export class UI_Manager {
@@ -24,7 +25,7 @@ export class UI_Manager {
         });
     }
 
-    static registerContextMenuForTagging() {
+    static registerContextMenuForTagging(mainWin: _ZoteroTypes.MainWindow) {
 
         // ztoolkit.log(`chrome://${config.addonRef}/content/icons/Art_And_Design_Transformation-1024.png`);
         ztoolkit.Menu.register("collection", {
@@ -37,6 +38,7 @@ export class UI_Manager {
                 const ZoteroPane = Zotero.getActiveZoteroPane(); // Korrektur hier
                 const collection = ZoteroPane.getSelectedCollection();
                 ztoolkit.log(collection);
+                // if (collection) await openKnowledgeItemsWindow(mainWin, collection);
                 if (collection) await TagManager.showAdvancedTaggingDialog(collection);
             },
         });

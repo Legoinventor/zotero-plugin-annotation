@@ -1,5 +1,18 @@
 {
   "extends": "zotero-types/entries/sandbox/",
-  "include": ["src", "typings"],
-  "exclude": ["build", "addon"]
+  "include": [
+    "src",
+    "typings"
+  ],
+  "exclude": [
+    "build",
+    "addon"
+  ],
+  "compilerOptions": {
+    "lib": [
+      "es2020",
+      "dom"
+    ], // <--- das brauchst du
+    "target": "es2020",
+  }
 }
